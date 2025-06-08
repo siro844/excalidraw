@@ -1,6 +1,6 @@
 import { Router, Response, RequestHandler } from "express";
-import authMiddleware from "../middleware/authMiddleware";
-import { AuthenticatedRequest } from "../types/auth";
+import authMiddleware from "../middleware/authMiddleware.js";
+import { AuthenticatedRequest } from "../types/auth.js";
 import { prisma } from "@repo/database";
 
 const roomRouter = Router();

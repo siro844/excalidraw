@@ -2,11 +2,12 @@ import { Router,Request,Response } from "express";
 import jwt from "jsonwebtoken";
 const authRouter = Router();
 import z from "zod";
-import { UserAuth,User } from "../types/auth";
+import { UserAuth,User } from "../types/auth.js";
 import { prisma } from "@repo/database";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt"
 dotenv.config();
+
 
 
 const JWT_SECRET = process.env.JWT_SECRET!

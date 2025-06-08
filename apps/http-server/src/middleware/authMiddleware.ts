@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 import { Request, Response, NextFunction } from "express";
-import { AuthenticatedRequest } from "../types/auth";
+import { AuthenticatedRequest } from "../types/auth.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
