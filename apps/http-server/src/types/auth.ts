@@ -2,8 +2,8 @@ import { Request } from "express"
 import z from 'zod';
 
 export interface AuthenticatedRequest extends Request {
-    userId: string;
-}
+    userId?: string;
+  }
 
 
 export const UserAuth = z.object({
