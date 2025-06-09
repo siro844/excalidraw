@@ -30,14 +30,76 @@ const wss = new WebSocketServer({
     }
   }
 });
+interface User {
+  userId: String,
+  rooms: Number[],
+  ws: WebSocket
+}
+
+interface Message {
+  type: String,
+  message?: String,
+  roomId: Number
+}
+
+const users: User[] = []
+
 
 wss.on('connection', (ws: WebSocket, req: AuthenticatedRequest) => {
   const user = req.user!;
   console.log('User connected:', user);
+  users.push({
+    userId: user.userId,
+    rooms: [],
+    ws: ws
+  })
 
   ws.on('message', (message: WebSocket.Data) => {
-    console.log(`Message from user ${user.userId}:`, message.toString());
-    ws.send('hehehehe')
+    const parsedData: Message = JSON.parse(message as unknown as string);
+    try {
+      if (parsedData.type === "join_room") {
+        const user = users.find(x => x.ws === ws);
+        if (!user) {
+          return;
+        }
+        user?.rooms.push(parsedData.roomId);
+      }
+
+      if (parsedData.type === "leave_room") {
+        const user = users.find(x => x.ws === ws);
+        console.log()
+        if (!user) {
+          return;
+        }
+        user.rooms = user?.rooms.filter(x => x === parsedData.roomId);
+      }
+
+      if (parsedData.type === "chat") {
+        const user = users.find(x => x.ws === ws);
+        if (!user) {
+          return;
+        }
+        console.log(users);
+        const roomId = parsedData.roomId;
+        const messageContent = parsedData.message || '';
+        console.log(`User ${user.userId} sent message to room ${roomId}:`, messageContent);
+
+        users.forEach(u => {
+          if (u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
+            u.ws.send(JSON.stringify({
+              type: 'message',
+              userId: user.userId,
+              roomId: roomId,
+              message: messageContent
+            }));
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error processing message:', (error as Error).message);
+    }
+
+
   });
 
   ws.on('close', () => {
