@@ -30,5 +30,5 @@ roomRouter.post('/create', async (req: AuthenticatedRequest, res: Response) => {
 
 })
 
-
+//TODO : ADD AN ENDPOINT FOR RETERIEVING ALL CHATS OF A ROOM
 export default roomRouter

@@ -30,6 +30,8 @@ const wss = new WebSocketServer({
     }
   }
 });
+
+// TODO STORE MESSAGES IN DATABASE AND VERIFICATION FOR ROOMS
 interface User {
   userId: String,
   rooms: Number[],
