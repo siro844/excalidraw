@@ -8,21 +8,38 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  output = "../generated/client"
+  output   = "../generated/client"
 }
 
 model User {
-  id            String    @id @default(cuid())
-  password          String
-  email         String   @unique
-  room Room[]
+  id       String @id @default(cuid())
+  password String
+  email    String @unique
+  name     String
+  room     Room[]
+  chats    Chat[]
+
+  @@map("user")
 }
 
 model Room {
-  id        Int    @id @default(autoincrement())
-  roomId    Int    @unique
+  id        Int      @id @default(autoincrement())
+  roomId    Int      @unique
   userId    String
-  user      User   @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  chats     Chat[]
+  createdAt DateTime @default(now())
 
   @@map("rooms")
+}
+
+model Chat {
+  id     Int    @id @default(autoincrement())
+  roomId Int
+  userId String
+  message String
+  room   Room   @relation(fields: [roomId], references: [id])
+  sender User   @relation(fields: [userId], references: [id])
+
+  @@map("chat")
 }
