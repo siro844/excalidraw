@@ -38,7 +38,7 @@ model Chat {
   roomId Int
   userId String
   message String
-  room   Room   @relation(fields: [roomId], references: [id])
+  room   Room   @relation(fields: [roomId], references: [roomId])
   sender User   @relation(fields: [userId], references: [id])
 
   @@map("chat")

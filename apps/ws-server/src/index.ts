@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { IncomingMessage } from 'http';
 import { configDotenv } from 'dotenv';
 import { AuthenticatedRequest, JWTPayload } from './types/auth';
-
+import { prisma } from "@repo/database";
 configDotenv();
 
 const JWT_SECRET: string = process.env.JWT_SECRET || 'hehehehehehe';
@@ -44,7 +44,7 @@ wss.on('connection', (ws: WebSocket, req: AuthenticatedRequest) => {
 
   userSocketMap.set(userId, ws);
 
-  ws.on('message', (message: WebSocket.Data) => {
+  ws.on('message', async (message: WebSocket.Data) => {
     try {
       const parsedData: Message = JSON.parse(message.toString());
 
@@ -82,6 +82,13 @@ wss.on('connection', (ws: WebSocket, req: AuthenticatedRequest) => {
             }
           });
         }
+        await prisma.chat.create({
+          data:{
+            roomId: parsedData.roomId,
+            userId: userId,
+            message: messageContent,
+          }
+        })
       }
     } catch (error) {
       console.error('Error processing message:', (error as Error).message);
