@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 import { IncomingMessage } from 'http';
 import { configDotenv } from 'dotenv';
 import { AuthenticatedRequest, JWTPayload } from './types/auth';
-configDotenv()
 
+configDotenv();
 
 const JWT_SECRET: string = process.env.JWT_SECRET || 'hehehehehehe';
 
@@ -13,7 +13,6 @@ const wss = new WebSocketServer({
   verifyClient: (info: { req: IncomingMessage }) => {
     try {
       const headers = info.req.headers;
-
       const token = headers.token as string;
       if (!token) {
         console.log('No token header provided');
@@ -23,89 +22,83 @@ const wss = new WebSocketServer({
       console.log('JWT verified successfully:', decoded);
       (info.req as AuthenticatedRequest).user = decoded;
       return true;
-
     } catch (error) {
       console.log('JWT verification failed:', (error as Error).message);
       return false;
     }
-  }
+  },
 });
 
-// TODO STORE MESSAGES IN DATABASE AND VERIFICATION FOR ROOMS
-interface User {
-  userId: String,
-  rooms: Number[],
-  ws: WebSocket
-}
-
 interface Message {
-  type: String,
-  message?: String,
-  roomId: Number
+  type: string;
+  message?: string;
+  roomId: number;
 }
 
-const users: User[] = []
-
+const userSocketMap = new Map<string, WebSocket>();
+const roomUserMap = new Map<number, Set<string>>();
 
 wss.on('connection', (ws: WebSocket, req: AuthenticatedRequest) => {
-  const user = req.user!;
-  console.log('User connected:', user);
-  users.push({
-    userId: user.userId,
-    rooms: [],
-    ws: ws
-  })
+  const { userId } = req.user!;
+  console.log('User connected:', userId);
+
+  userSocketMap.set(userId, ws);
 
   ws.on('message', (message: WebSocket.Data) => {
-    const parsedData: Message = JSON.parse(message as unknown as string);
     try {
-      if (parsedData.type === "join_room") {
-        const user = users.find(x => x.ws === ws);
-        if (!user) {
-          return;
+      const parsedData: Message = JSON.parse(message.toString());
+
+      if (parsedData.type === 'join_room') {
+        if (!roomUserMap.has(parsedData.roomId)) {
+          roomUserMap.set(parsedData.roomId, new Set());
         }
-        user?.rooms.push(parsedData.roomId);
+        roomUserMap.get(parsedData.roomId)!.add(userId);
+        console.log(`${userId} joined room ${parsedData.roomId}`);
       }
 
-      if (parsedData.type === "leave_room") {
-        const user = users.find(x => x.ws === ws);
-        console.log()
-        if (!user) {
-          return;
-        }
-        user.rooms = user?.rooms.filter(x => x === parsedData.roomId);
+      if (parsedData.type === 'leave_room') {
+        roomUserMap.get(parsedData.roomId)?.delete(userId);
+        console.log(`${userId} left room ${parsedData.roomId}`);
       }
 
-      if (parsedData.type === "chat") {
-        const user = users.find(x => x.ws === ws);
-        if (!user) {
-          return;
-        }
-        console.log(users);
+      if (parsedData.type === 'chat') {
         const roomId = parsedData.roomId;
         const messageContent = parsedData.message || '';
-        console.log(`User ${user.userId} sent message to room ${roomId}:`, messageContent);
+        console.log(`User ${userId} sent message to room ${roomId}:`, messageContent);
 
-        users.forEach(u => {
-          if (u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
-            u.ws.send(JSON.stringify({
-              type: 'message',
-              userId: user.userId,
-              roomId: roomId,
-              message: messageContent
-            }));
-          }
-        });
+        const recipients = roomUserMap.get(roomId);
+        if (recipients) {
+          recipients.forEach((uid) => {
+            const socket = userSocketMap.get(uid);
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(
+                JSON.stringify({
+                  type: 'message',
+                  userId,
+                  roomId,
+                  message: messageContent,
+                }),
+              );
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('Error processing message:', (error as Error).message);
     }
-
-
   });
 
   ws.on('close', () => {
-    console.log(`User ${user.userId} disconnected`);
+    console.log(`User ${userId} disconnected`);
+
+    for (const [roomId, userSet] of roomUserMap) {
+      userSet.delete(userId);
+      if (userSet.size === 0) {
+        roomUserMap.delete(roomId);
+      }
+    }
+
+    userSocketMap.delete(userId);
   });
 });
 
