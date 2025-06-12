@@ -51,7 +51,8 @@ roomRouter.get('/chat/:roomId', async (req: AuthenticatedRequest, res: Response)
                     },
                 },
             },
-        });
+            take:50
+    });
         if (chats.length === 0) {
              res.status(404).json({
                 message: "No chats found for this room",
