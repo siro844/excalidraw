@@ -51,6 +51,9 @@ roomRouter.get('/chat/:roomId', async (req: AuthenticatedRequest, res: Response)
                     },
                 },
             },
+            orderBy:{
+                id:'desc'
+            },
             take:50
     });
         if (chats.length === 0) {
