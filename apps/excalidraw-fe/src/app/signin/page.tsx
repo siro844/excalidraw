@@ -7,32 +7,35 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeClosed, EyeOff } from "lucide-react";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "sonner"
 import { useRouter } from "next/navigation";
+import { Login } from "@/api/auth";
 
 export default function Signin() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useRouter();
-//   const handleSubmit = async (e:React.FormEvent) => {
-//     e.preventDefault();
-//     try {
-//     //   const response = await Login({ username, password });
-//     //   console.log("Login successful:", response.token);
-//     //   localStorage.setItem("authToken", response.token)
-//       navigate("/dashboard");
-//     } catch (error) {
-//       console.error("Login failed:", error);
-    
-//       if (axios.isAxiosError(error)) {
-//         const message = error.response?.data?.error || "An error occurred";
-//         toast.error(message);
-//       } else {
-//         toast.error("Failed to Sign In");
-//       }
-//     }
-//   };
+  const router = useRouter();
+  const handleSubmit = async (e:React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await Login({ email, password });
+      console.log("Login successful:", response.token);
+      localStorage.setItem("authToken", response.token)
+      toast("Logged In Successfully")
+      router.push("/dashboard");
+     
+    } catch (error) {
+      console.error("Login failed:", error);
+
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.error || "An error occurred";
+        toast.error(message);
+      } else {
+        toast.error("Failed to Sign In");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
@@ -53,15 +56,15 @@ export default function Signin() {
             </p>
           </div>
 
-          <form className="space-y-4" onSubmit={()=>{}}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="email">UserName</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
+                id="email"
                 type="text"
-                placeholder="siro"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="siro@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>

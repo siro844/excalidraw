@@ -2,7 +2,7 @@ import { Router,Request,Response } from "express";
 import jwt from "jsonwebtoken";
 const authRouter = Router();
 import z from "zod";
-import { UserAuth,User } from "../types/auth.js";
+import { UserAuth,User ,UserLoginType, UserLogin} from "../types/auth.js";
 import { prisma } from "@repo/database";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt"
@@ -34,7 +34,7 @@ authRouter.post('/signup',async(req : Request,res : Response)=>{
 
 
 authRouter.post('/login',async (req,res)=>{
-    const {success , error} = UserAuth.safeParse(req.body);
+    const {success , error} = UserLogin.safeParse(req.body);
     if(!success){
         res.status(400).json({
             error :"Invalid values",
@@ -42,7 +42,7 @@ authRouter.post('/login',async (req,res)=>{
         })
         return;
     }
-    const userData : User = req.body;
+    const userData : UserLoginType = req.body;
    
     const user = await prisma.user.findUnique({
         where:{
