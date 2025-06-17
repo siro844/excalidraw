@@ -5,7 +5,9 @@ type Shape = {
   y: number;
   width?: number;
   height?: number;
-  x_2?:number;
-  y_2?:number;
-};
+  x_2?: number;
+  y_2?: number;
+  points?: [number, number][];
+  text?: string;
 
+};
