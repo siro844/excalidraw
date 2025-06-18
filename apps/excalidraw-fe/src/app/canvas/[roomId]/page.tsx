@@ -17,6 +17,8 @@ export default function DrawPage() {
   const rcRef = useRef<RoughCanvas | null>(null);
   const [tempShape, setTempShape] = useState<Shape | null>(null);
   const tempShapeRef = useRef<Shape | null>(null);
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+
   const roughOptions = {
     stroke: "black",
     roughness: 0,
@@ -26,6 +28,13 @@ export default function DrawPage() {
     disableMultiStroke: true,
     disableMultiStrokeFill: true,
   };
+
+  const [dragOffset, setDragOffset] = useState<{
+    dx: number;
+    dy: number;
+  } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const [textInput, setTextInput] = useState<{
     x: number;
     y: number;
@@ -117,7 +126,56 @@ export default function DrawPage() {
       Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1) /
       Math.hypot(y2 - y1, x2 - x1);
 
-    return distance < 10; 
+    return distance < 10;
+  }
+
+  function isInsideShape(x: number, y: number, shape: Shape): boolean {
+    if (
+      shape.type === "rectangle" ||
+      shape.type === "ellipse" ||
+      shape.type === "diamond"
+    ) {
+      return (
+        x >= shape.x &&
+        y >= shape.y &&
+        x <= shape.x + shape.width! &&
+        y <= shape.y + shape.height!
+      );
+    } else if (shape.type === "line" || shape.type === "arrow") {
+      const minX = Math.min(shape.x, shape.x_2!);
+      const maxX = Math.max(shape.x, shape.x_2!);
+      const minY = Math.min(shape.y, shape.y_2!);
+      const maxY = Math.max(shape.y, shape.y_2!);
+      return x >= minX && x <= maxX && y >= minY && y <= maxY;
+    } else if (shape.type === "text") {
+      return (
+        x >= shape.x &&
+        y >= shape.y - 16 &&
+        x <= shape.x + shape.text!.length * 10 &&
+        y <= shape.y
+      );
+    }
+    return false;
+  }
+
+  function drawResizeHandles(ctx: CanvasRenderingContext2D, shape: Shape) {
+    const handleSize = 8;
+    const corners = [
+      [shape.x, shape.y],
+      [shape.x + shape.width!, shape.y],
+      [shape.x, shape.y + shape.height!],
+      [shape.x + shape.width!, shape.y + shape.height!],
+    ];
+
+    ctx.fillStyle = "blue";
+    corners.forEach(([x, y]) => {
+      ctx.fillRect(
+        x - handleSize / 2,
+        y - handleSize / 2,
+        handleSize,
+        handleSize
+      );
+    });
   }
 
   useEffect(() => {
@@ -172,13 +230,30 @@ export default function DrawPage() {
         return;
       }
 
+      if (activeTool === "selection") {
+        const { x, y } = getMousePos(e);
+        console.log("Inside MOuse down");
+        for (let i = shapes.length - 1; i >= 0; i--) {
+          const shape = shapes[i];
+          if (isInsideShape(x, y, shape)) {
+            setSelectedShapeId(shape.id);
+            setDragOffset({ dx: x - shape.x, dy: y - shape.y });
+            setIsDragging(true);
+            console.log(shape);
+            return;
+          }
+        }
+        setSelectedShapeId(null);
+        redrawCanvas();
+        return;
+      }
+
       if (activeTool === "eraser") {
         const rect = canvasRef.current!.getBoundingClientRect();
         const x = (e.clientX - rect.left) * (window.devicePixelRatio || 1);
         const y = (e.clientY - rect.top) * (window.devicePixelRatio || 1);
 
         const updatedShapes = shapes.filter((shape) => {
-          // Check if click is inside the shape
           if (
             shape.type === "rectangle" ||
             shape.type === "ellipse" ||
@@ -240,6 +315,8 @@ export default function DrawPage() {
 
       const { x: currentX, y: currentY } = getMousePos(e);
       let x, y, width, height, x_2, y_2;
+      canvas.style.cursor = activeTool === "selection" ? "move" : "crosshair";
+
       if (activeTool === "rectangle") {
         ({ x, y, width, height } = normaliseRect(
           startPoint.x,
@@ -267,6 +344,41 @@ export default function DrawPage() {
         y = startPoint.y;
         x_2 = currentX;
         y_2 = currentY;
+      } else if (
+        activeTool === "selection" &&
+        isDragging &&
+        selectedShapeId &&
+        dragOffset
+      ) {
+        const { x, y } = getMousePos(e);
+        setShapes((prevShapes) =>
+          prevShapes.map((shape) => {
+            if (shape.id === selectedShapeId) {
+              const dx = x - dragOffset.dx;
+              const dy = y - dragOffset.dy;
+
+              if (shape.type === "line" || shape.type === "arrow") {
+                const x2Offset = shape.x_2! - shape.x;
+                const y2Offset = shape.y_2! - shape.y;
+                return {
+                  ...shape,
+                  x: dx,
+                  y: dy,
+                  x_2: dx + x2Offset,
+                  y_2: dy + y2Offset,
+                };
+              }
+
+              return {
+                ...shape,
+                x: dx,
+                y: dy,
+              };
+            }
+            return shape;
+          })
+        );
+        return;
       }
 
       if (activeTool === "line" || activeTool === "arrow") {
@@ -363,6 +475,10 @@ export default function DrawPage() {
         setIsDrawing(false);
         redrawCanvas();
         return;
+      } else if (activeTool === "selection" && isDragging) {
+        setIsDragging(false);
+        setDragOffset(null);
+        return;
       }
 
       const newShape: Shape = {
@@ -395,6 +511,18 @@ export default function DrawPage() {
       canvas.removeEventListener("mouseup", handleMouseUp);
     };
   }, [activeTool, isDrawing, startPoint, shapes]);
+
+  useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedShapeId) {
+      setShapes((prev) => prev.filter((shape) => shape.id !== selectedShapeId));
+      setSelectedShapeId(null);
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, [selectedShapeId]);
 
   useEffect(() => {
     console.log("Selected tool:", activeTool);
@@ -463,6 +591,20 @@ export default function DrawPage() {
         ctx.font = "32px Arial";
         ctx.fillStyle = "black";
         ctx.fillText(shape.text! || "", shape.x / dpr, shape.y / dpr);
+      }
+
+      if (shape.id === selectedShapeId) {
+        ctx.save();
+        ctx.strokeStyle = "lightblue";
+        ctx.lineWidth = 5;
+        ctx.setLineDash([4, 2]);
+        ctx.strokeRect(
+          shape.x / dpr,
+          shape.y / dpr,
+          shape.width! / dpr,
+          shape.height! / dpr
+        );
+        ctx.restore();
       }
     });
 
