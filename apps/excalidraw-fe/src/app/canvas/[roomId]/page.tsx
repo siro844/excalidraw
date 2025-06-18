@@ -101,6 +101,25 @@ export default function DrawPage() {
     rc.polygon(points, roughOptions);
   }
 
+  function isNearLine(
+    px: number,
+    py: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ) {
+    const a = py - y1;
+    const b = x1 - px;
+    const c = x1 * (y1 - py) + px * (py - y1);
+
+    const distance =
+      Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1) /
+      Math.hypot(y2 - y1, x2 - x1);
+
+    return distance < 10; 
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const parent = containerRef.current;
@@ -150,6 +169,37 @@ export default function DrawPage() {
           inputRef.current?.focus();
         }, 0);
 
+        return;
+      }
+
+      if (activeTool === "eraser") {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (window.devicePixelRatio || 1);
+        const y = (e.clientY - rect.top) * (window.devicePixelRatio || 1);
+
+        const updatedShapes = shapes.filter((shape) => {
+          // Check if click is inside the shape
+          if (
+            shape.type === "rectangle" ||
+            shape.type === "ellipse" ||
+            shape.type === "diamond"
+          ) {
+            return !(
+              x >= shape.x &&
+              x <= shape.x + (shape.width ?? 0) &&
+              y >= shape.y &&
+              y <= shape.y + (shape.height ?? 0)
+            );
+          } else if (shape.type === "line" || shape.type === "arrow") {
+            return !isNearLine(x, y, shape.x, shape.y, shape.x_2!, shape.y_2!);
+          } else if (shape.type === "text") {
+            return !(Math.abs(x - shape.x) < 50 && Math.abs(y - shape.y) < 20);
+          }
+          return true;
+        });
+
+        setShapes(updatedShapes);
+        redrawCanvas();
         return;
       }
 
